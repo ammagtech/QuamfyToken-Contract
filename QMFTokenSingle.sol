@@ -585,55 +585,71 @@ contract Ownable {
     }
 }
 
-contract QMFToken is ERC20, Ownable {
+contract QMFToken is ERC20, Ownable{
 
     uint256 private burnThreshold; // Threshold for burning supply
     address private masterWallet;
+    uint256 private lastActionTimestamp;
 
-    uint256 private feeAmount; 
-
+    uint256 private feeAmount;
+    uint256 private maxFeeAmount; // Maximum fee amount
+    address public ecosystemAddress;
+ 
     string constant NOT_AUTHORIZED = "QMF-1";
     string constant FEE_AMOUNT_ERROR = "QMF-2";
 
-    constructor(address _masterWallet) ERC20("Quamfy", "QMF"){
-        masterWallet = _masterWallet;
+    constructor(address _owner, address _masterWallet, address _ecosystemAddress) ERC20("Quamfy", "QMF"){
+        require(_masterWallet != address(0), "Master wallet cannot be the zero address");
+        require(_ecosystemAddress != address(0), "Ecosystem address cannot be the zero address");
+        require(_owner != address(0), "Owner address cannot be the zero address");
 
-        _mint(msg.sender, 100000000 * 10**18);
+        _transferOwnership(_owner);
+        masterWallet = _masterWallet;
+        ecosystemAddress = _ecosystemAddress; 
+
+        //_mint(msg.sender, 100000000 * 10**18);
+        _mint(_owner, 87000000 * 10**18); // 87% supply to owner
+        _mint(ecosystemAddress, 13000000 * 10**18); // 13% supply to ecosystem
         
         burnThreshold = 50000000 * 10**18;
  
-        feeAmount = 1 *10**15; // 0.001 QMF
+        feeAmount = 2 *10**15; // 0.002 QMF
+        maxFeeAmount = 2 *10**17; // 0.2 QMF
     }
 
     function getFee() public view returns (uint256) {
         return feeAmount;
-    }
+    }   
 
     function _transfer(
         address from,
         address to,
-        uint256 amount) internal override {
+        uint256 amount ) internal override {
         require(from != address(0), "Transfer from the zero address");
         require(to != address(0), "Transfer to the zero address");
         require(amount > 0, "Amount must be greater than zero");
 
-        uint256 amtToTransfer = amount - feeAmount;
+        uint256 amtToTransfer = amount;
 
+        if (from != masterWallet && to != masterWallet) {
         require(feeAmount < amount, FEE_AMOUNT_ERROR);
+        amtToTransfer = amount - feeAmount;
 
-        if(totalSupply() >  burnThreshold){
+        if (totalSupply() > burnThreshold) {
             _burn(from, feeAmount);
-        }else{
+        } else {
             _balances[from] -= feeAmount;
             _balances[masterWallet] += feeAmount;
             emit Transfer(from, masterWallet, feeAmount);
         }
-        
-        _balances[from] -= amtToTransfer;
-        _balances[to] += amtToTransfer;
-
-        emit Transfer(from, to, amtToTransfer);
     }
+
+    _balances[from] -= amtToTransfer;
+    _balances[to] += amtToTransfer;
+
+    emit Transfer(from, to, amtToTransfer);
+    }
+
 
     // function transferToMaster(uint256 feeAmt) private{
     //     _balances[masterWallet] += feeAmt;
@@ -644,11 +660,17 @@ contract QMFToken is ERC20, Ownable {
     }
 
     function setBurnThreshold(uint256 _burnThreshold) public onlyOwner{
+        require(block.timestamp > lastActionTimestamp , "Owner can not perform action for 48 hours");
         burnThreshold = _burnThreshold;
+        lastActionTimestamp = block.timestamp + 48 * 3600;
+
     }
 
     function setFeeAmount(uint256 _feeAmount) public onlyOwner{
+        require(block.timestamp > lastActionTimestamp , "Owner can not perform action for 48 hours");
+        require(_feeAmount <= maxFeeAmount, "Fee amount cannot exceed the maximum fee");
         feeAmount = _feeAmount;
+        lastActionTimestamp = block.timestamp + 48 * 3600;
     }
 
     function getMasterWallet() public view returns(address){
@@ -656,6 +678,16 @@ contract QMFToken is ERC20, Ownable {
     }
 
     function setMasterWallet(address _masterWallet) public onlyOwner{
+        require(block.timestamp > lastActionTimestamp, "Owner can not perform action for 48 hours");
+        require(_masterWallet != address(0), "Master wallet cannot be the zero address");
         masterWallet = _masterWallet;
+        lastActionTimestamp = block.timestamp + 48 * 3600;
+    }
+
+    function getRemainingTime() public view returns(uint256 _time){
+        if(lastActionTimestamp > block.timestamp)
+            _time = lastActionTimestamp - block.timestamp;
+        else
+        _time = 0;
     }
 }
