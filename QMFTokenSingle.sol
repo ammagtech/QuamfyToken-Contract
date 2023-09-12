@@ -598,6 +598,11 @@ contract QMFToken is ERC20, Ownable{
     string constant NOT_AUTHORIZED = "QMF-1";
     string constant FEE_AMOUNT_ERROR = "QMF-2";
 
+    event BurnThresholdUpdated(uint256 newBurnThreshold);
+    event FeeAmountUpdated(uint256 newFeeAmount);
+    event MasterWalletUpdated(address newMasterWallet);
+
+
     constructor(address _owner, address _masterWallet, address _ecosystemAddress) ERC20("Quamfy", "QMF"){
         require(_masterWallet != address(0), "Master wallet cannot be the zero address");
         require(_ecosystemAddress != address(0), "Ecosystem address cannot be the zero address");
@@ -663,6 +668,7 @@ contract QMFToken is ERC20, Ownable{
         require(block.timestamp > lastActionTimestamp , "Owner can not perform action for 48 hours");
         burnThreshold = _burnThreshold;
         lastActionTimestamp = block.timestamp + 48 * 3600;
+        emit BurnThresholdUpdated(_burnThreshold);
 
     }
 
@@ -671,6 +677,7 @@ contract QMFToken is ERC20, Ownable{
         require(_feeAmount <= maxFeeAmount, "Fee amount cannot exceed the maximum fee");
         feeAmount = _feeAmount;
         lastActionTimestamp = block.timestamp + 48 * 3600;
+        emit FeeAmountUpdated(_feeAmount);
     }
 
     function getMasterWallet() public view returns(address){
@@ -682,6 +689,7 @@ contract QMFToken is ERC20, Ownable{
         require(_masterWallet != address(0), "Master wallet cannot be the zero address");
         masterWallet = _masterWallet;
         lastActionTimestamp = block.timestamp + 48 * 3600;
+        emit MasterWalletUpdated(_masterWallet);
     }
 
     function getRemainingTime() public view returns(uint256 _time){
